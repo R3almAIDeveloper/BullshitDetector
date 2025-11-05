@@ -1,3 +1,4 @@
+// src/components/OnboardingModal.tsx
 interface Props {
   isOpen: boolean;
   onClose: () => void;
