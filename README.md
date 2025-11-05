@@ -1,16 +1,17 @@
-## Hi there 👋
+# Bullshit Detector 🐂💨
 
-<!--
-**BullshitDetector/BullshitDetector** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+**Detect political spin, corporate jargon, and plain-old nonsense in real time.**
 
-Here are some ideas to get you started:
+## Features
+- **Voter Mode** – simple, opinion-free fact checks.
+- **Professional Mode** – deep-dive analysis with sources.
+- Sentiment & History dashboards.
+- Dark / Light theme + onboarding flow.
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## Quick Start
+
+```bash
+git clone https://github.com/BullshitDetector/BullshitDetector.git
+cd BullshitDetector
+pnpm install   # or npm/yarn
+pnpm dev
