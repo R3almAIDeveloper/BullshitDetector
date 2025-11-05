@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useModel } from '../contexts/ModelContext';
 import { useUserMode } from '../contexts/UserModeContext';
+import { saveToHistory } from '../lib/history';
 
 interface Verdict {
   score: number;
@@ -74,11 +75,24 @@ export default function Validator() {
 
       const parsed: Verdict = JSON.parse(content);
 
-      if (typeof parsed.score !== 'number' || !['bullshit', 'mostly true', 'neutral'].includes(parsed.verdict)) {
+      if (
+        typeof parsed.score !== 'number' ||
+        !['bullshit', 'mostly true', 'neutral'].includes(parsed.verdict)
+      ) {
         throw new Error('Invalid format');
       }
 
       setResult(parsed);
+
+      // Auto-save to history
+      if (parsed.verdict) {
+        saveToHistory({
+          claim,
+          verdict: parsed.verdict,
+          score: parsed.score,
+          mode,
+        });
+      }
     } catch (error) {
       console.error('Validation failed:', error);
       setResult({

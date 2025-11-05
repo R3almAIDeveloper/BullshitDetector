@@ -2,38 +2,22 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Trash2, AlertCircle } from 'lucide-react';
-
-interface HistoryItem {
-  id: string;
-  claim: string;
-  verdict: 'bullshit' | 'mostly true' | 'neutral';
-  score: number;
-  timestamp: number;
-  mode: 'voter' | 'professional';
-}
+import { getHistory, clearHistory, type HistoryItem } from '../lib/history';
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Load history
+  const loadHistory = () => {
+    setHistory(getHistory().sort((a, b) => b.timestamp - a.timestamp));
+  };
+
   useEffect(() => {
-    const raw = localStorage.getItem('validator-history');
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setHistory(parsed.sort((a, b) => b.timestamp - a.timestamp));
-        }
-      } catch (e) {
-        console.error('Failed to parse history:', e);
-      }
-    }
+    loadHistory();
   }, []);
 
-  // Delete all
   const deleteAll = () => {
-    localStorage.removeItem('validator-history');
+    clearHistory();
     setHistory([]);
     setShowDeleteModal(false);
   };
@@ -103,7 +87,7 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* Delete All Modal */}
+      {/* Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
