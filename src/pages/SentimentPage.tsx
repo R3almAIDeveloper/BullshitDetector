@@ -1,81 +1,62 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
-import { Search, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-
 // src/pages/SentimentPage.tsx
-export default function SentimentPage() {
-  return <div className="p-8 text-2xl">Sentiment Trends Dashboard</div>;
+import { useState } from 'react';
+
+interface SentimentData {
+  topic: string;
+  positive: number;
+  neutral: number;
+  negative: number;
+  totalPosts: number;
 }
 
-export function SentimentPage() {
-  const [topic, setTopic] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [results, setResults] = useState<{ topic: string; positive: number; neutral: number; negative: number; totalPosts: number } | null>(null);
+export default function SentimentPage() {
+  const [results, setResults] = useState<SentimentData | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSearch = () => {
-    if (!topic.trim()) return;
-    setIsSearching(true);
+  const analyzeSentiment = async () => {
+    setLoading(true);
+    setResults(null);
+
+    // Mock data
     setTimeout(() => {
-      setResults({ topic, positive: 42, neutral: 31, negative: 27, totalPosts: 15432 });
-      setIsSearching(false);
+      setResults({
+        topic: 'Climate Change Policy',
+        positive: 420,
+        neutral: 180,
+        negative: 300,
+        totalPosts: 900,
+      });
+      setLoading(false);
     }, 1500);
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Sentiment Explorer</h2>
-        <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">Analyze public sentiment on any topic</p>
+    <div className="container mx-auto p-6 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-2">Sentiment Dashboard</h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-6">
+        Analyze public sentiment on any topic in real time.
+      </p>
+
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border mb-6">
+        <button
+          onClick={analyzeSentiment}
+          disabled={loading}
+          className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition"
+        >
+          {loading ? 'Analyzing...' : 'Run Sentiment Analysis'}
+        </button>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Enter a topic..." />
-            </div>
-            <Button onClick={handleSearch} isLoading={isSearching}><Search className="w-5 h-5 mr-2" />Search</Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {results && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Results for: {results.topic}</h3>
-            <span className="text-sm text-gray-600 dark:text-gray-400">{results.totalPosts.toLocaleString()} posts analyzed</span>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                <CardContent className="p-6 text-center">
-                  <TrendingUp className="w-8 h-8 mx-auto mb-2 text-green-600 dark:text-green-400" />
-                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">{results.positive}%</div>
-                  <div className="text-sm text-green-700 dark:text-green-300 mt-1">Positive</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-                <CardContent className="p-6 text-center">
-                  <Minus className="w-8 h-8 mx-auto mb-2 text-gray-600 dark:text-gray-400" />
-                  <div className="text-3xl font-bold text-gray-600 dark:text-gray-400">{results.neutral}%</div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300 mt-1">Neutral</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-                <CardContent className="p-6 text-center">
-                  <TrendingDown className="w-8 h-8 mx-auto mb-2 text-red-600 dark:text-red-400" />
-                  <div className="text-3xl font-bold text-red-600 dark:text-red-400">{results.negative}%</div>
-                  <div className="text-sm text-red-700 dark:text-red-300 mt-1">Negative</div>
-                </CardContent>
-              </Card>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+              {((results.positive / results.totalPosts) * 100).toFixed(1)}%
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
+            <div className="text-sm text-gray-600 dark:text-gray-400">Positive</div>
+            <div className="text-2xl font-medium mt-1">{results.positive} posts</div>
+          </div>
+
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+              {((results.neutral / results.totalPosts) * 100
