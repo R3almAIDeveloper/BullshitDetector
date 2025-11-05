@@ -6,7 +6,7 @@ import { useModel } from '../contexts/ModelContext';
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const { mode, setMode } = useUserMode();
-  const { model, setModel, apiKey, setApiKey, isValidKey, testApiKey } = useModel(); // ← FIXED
+  const { model, setModel, apiKey, setApiKey, isValidKey, testApiKey } = useModel();
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -41,7 +41,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* User Mode */}
+        {/* Analysis Mode */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border">
           <h2 className="text-xl font-semibold mb-4">Analysis Mode</h2>
           <div className="space-y-3">
@@ -65,7 +65,7 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium">Professional Mode</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  In-depth analysis with sources and citations.
+                  In-depth analysis with quotes and sources.
                 </p>
               </div>
               <input
