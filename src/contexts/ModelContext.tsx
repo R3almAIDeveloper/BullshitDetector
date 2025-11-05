@@ -1,5 +1,6 @@
 // src/contexts/ModelContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { db } from '../lib/db';
 
 type Model = 'grok-3' | 'grok-4';
 
@@ -15,26 +16,46 @@ interface ModelContextType {
 const ModelContext = createContext<ModelContextType | undefined>(undefined);
 
 export function ModelProvider({ children }: { children: ReactNode }) {
-  // Load API key from localStorage on mount
-  const [apiKey, setApiKeyState] = useState(() => {
-    return localStorage.getItem('xai-api-key') || '';
-  });
-
-  const [model, setModel] = useState<Model>('grok-3');
+  const [apiKey, setApiKeyState] = useState('');
+  const [model, setModelState] = useState<Model>('grok-3');
   const [isValidKey, setIsValidKey] = useState<boolean | null>(null);
 
-  // Save API key to localStorage whenever it changes
-  const setApiKey = (key: string) => {
+  // Load from local JSON DB on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await db.get();
+        setApiKeyState(data.apiKey);
+        setModelState(data.model);
+      } catch (error) {
+        console.error('Failed to load DB:', error);
+      }
+    })();
+  }, []);
+
+  // Save API key to JSON DB
+  const setApiKey = async (key: string) => {
     const trimmed = key.trim();
     setApiKeyState(trimmed);
-    if (trimmed) {
-      localStorage.setItem('xai-api-key', trimmed);
-    } else {
-      localStorage.removeItem('xai-api-key');
+    try {
+      await db.setApiKey(trimmed);
+      setIsValidKey(null); // Reset validation
+    } catch (error) {
+      console.error('Failed to save API key:', error);
     }
-    setIsValidKey(null); // Reset validation
   };
 
+  // Save model to JSON DB
+  const setModel = async (model: Model) => {
+    setModelState(model);
+    try {
+      await db.setModel(model);
+    } catch (error) {
+      console.error('Failed to save model:', error);
+    }
+  };
+
+  // Test API key with xAI
   const testApiKey = async () => {
     if (!apiKey) {
       setIsValidKey(false);
@@ -55,11 +76,7 @@ export function ModelProvider({ children }: { children: ReactNode }) {
         }),
       });
 
-      if (response.ok) {
-        setIsValidKey(true);
-      } else {
-        setIsValidKey(false);
-      }
+      setIsValidKey(response.ok);
     } catch (error) {
       console.error('API Key test failed:', error);
       setIsValidKey(false);
@@ -67,7 +84,16 @@ export function ModelProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ModelContext.Provider value={{ model, setModel, apiKey, setApiKey, isValidKey, testApiKey }}>
+    <ModelContext.Provider
+      value={{
+        model,
+        setModel,
+        apiKey,
+        setApiKey,
+        isValidKey,
+        testApiKey,
+      }}
+    >
       {children}
     </ModelContext.Provider>
   );
@@ -75,6 +101,8 @@ export function ModelProvider({ children }: { children: ReactNode }) {
 
 export const useModel = (): ModelContextType => {
   const context = useContext(ModelContext);
-  if (!context) throw new Error('useModel must be used within ModelProvider');
+  if (!context) {
+    throw new Error('useModel must be used within ModelProvider');
+  }
   return context;
 };
