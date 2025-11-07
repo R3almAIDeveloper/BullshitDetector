@@ -1,182 +1,285 @@
-// src/pages/SettingsPage.tsx
-import { useTheme } from '../contexts/ThemeContext';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useModel } from '../contexts/ModelModelContext';
 import { useUserMode } from '../contexts/UserModeContext';
-import { useModel } from '../contexts/ModelContext';
 
-export default function SettingsPage() {
-  const { theme, toggleTheme } = useTheme();
-  const { mode, setMode } = useUserMode();
-  const { model, setModel, apiKey, setApiKey, isValidKey, testApiKey } = useModel();
+interface SentimentResult {
+  topic: string;
+  positive: number;
+  neutral: number;
+  negative: number;
+  totalPosts: number;
+  explanation: string;
+  quotes?: { text: string; sentiment: 'positive' | 'neutral' | 'negative' }[];
+  sources?: { title: string; url: string }[];
+}
+
+export default function SentimentPage() {
+  const [topic, setTopic] = useState('');
+  const [result, setResult] = useState<SentimentResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
+  const { apiKey, model } = useModel();
+  const { mode } = useUserMode();
+
+  const analyzeSentiment = async () => {
+    if (!topic.trim()) return;
+
+    setLoading(true);
+    setResult(null);
+
+    if (!apiKey) {
+      setResult({
+        topic,
+        positive: 0,
+        neutral: 0,
+        negative: 0,
+        totalPosts: 0,
+        explanation: 'Add your xAI API key in Settings to enable analysis.',
+      });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const isPro = mode === 'professional';
+
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: `Analyze public sentiment on "${topic}". ${
+                isPro
+                  ? `Return FULL JSON with quotes and sources.`
+                  : `Return only percentages and short summary.`
+              }
+              Respond **only** with valid JSON:
+              {
+                "topic": "${topic}",
+                "positive": 0-1000,
+                "neutral": 0-1000,
+                "negative": 0-1000,
+                "totalPosts": positive + neutral + negative,
+                "explanation": "1-2 sentence summary"${isPro ? `,
+                "quotes": [{"text": "quote", "sentiment": "positive|neutral|negative"}],
+                "sources": [{"title": "Source", "url": "https://..."}]` : ''}
+              }
+              No markdown. Max 3 quotes.`,
+            },
+          ],
+          max_tokens: isPro ? 500 : 200,
+          temperature: 0.2,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`API ${response.status}`);
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (!content) throw new Error('Empty response');
+
+      const parsed: SentimentResult = JSON.parse(content);
+
+      if (
+        typeof parsed.positive !== 'number' ||
+        typeof parsed.neutral !== 'number' ||
+        typeof parsed.negative !== 'number' ||
+        parsed.totalPosts !== parsed.positive + parsed.neutral + parsed.negative
+      ) {
+        throw new Error('Invalid format');
+      }
+
+      setResult(parsed);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      setResult({
+        topic,
+        positive: 0,
+        neutral: 0,
+        negative: 0,
+        totalPosts: 0,
+        explanation: `Error: ${error instanceof Error ? error.message : 'Unknown'}`,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCardClick = (type: 'positive' | 'neutral' | 'negative') => {
+    if (result) {
+      navigate(`/sentiment/${type}`, { state: { result, topic } });
+    }
+  };
+
+  const total = result ? result.totalPosts : 0;
+  const posPct = total > 0 ? (result!.positive / total) * 100 : 0;
+  const neuPct = total > 0 ? (result!.neutral / total) * 100 : 0;
+  const negPct = total > 0 ? (result!.negative / total) * 100 : 0;
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-2">Settings</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-8">
-        Customize your Bullshit Detector experience.
+    <div className="container mx-auto p-6 max-w-6xl">
+      <h1 className="text-3xl font-bold mb-2">Sentiment Dashboard</h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-6">
+        {mode === 'professional'
+          ? 'In-depth public opinion analysis with quotes and sources.'
+          : 'Quick sentiment overview of public opinion.'}
       </p>
 
-      <div className="space-y-8">
-        {/* Theme */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">Appearance</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Dark Mode</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Toggle between light and dark themes.
-              </p>
-            </div>
-            <button
-              onClick={toggleTheme}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                theme === 'dark' ? 'bg-blue-600' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Analysis Mode */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">Analysis Mode</h2>
-          <div className="space-y-3">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div>
-                <p className="font-medium">Voter Mode</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Simple, fast verdicts for everyday use.
-                </p>
-              </div>
-              <input
-                type="radio"
-                name="mode"
-                checked={mode === 'voter'}
-                onChange={() => setMode('voter')}
-                className="h-5 w-5 text-blue-600"
-              />
-            </label>
-
-            <label className="flex items-center justify-between cursor-pointer">
-              <div>
-                <p className="font-medium">Professional Mode</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  In-depth analysis with quotes and sources.
-                </p>
-              </div>
-              <input
-                type="radio"
-                name="mode"
-                checked={mode === 'professional'}
-                onChange={() => setMode('professional')}
-                className="h-5 w-5 text-blue-600"
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* xAI API Key */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">xAI API Configuration</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">API Key</label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="xai-..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Get your key at{' '}
-                <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  console.x.ai
-                </a>
-                . Saved locally.
-              </p>
-            </div>
-
-            <button
-              onClick={testApiKey}
-              disabled={!apiKey}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              Test API Key
-            </button>
-
-            {isValidKey !== null && (
-              <div className={`p-3 rounded-md flex items-center gap-2 ${
-                isValidKey
-                  ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                  : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-              }`}>
-                {isValidKey ? (
-                  <>
-                    Valid API Key
-                  </>
-                ) : (
-                  <>
-                    Invalid API Key
-                  </>
-                )}
-              </div>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border mb-8">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && analyzeSentiment()}
+            placeholder="e.g., Universal Basic Income, AI Regulation..."
+            className="flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+            disabled={loading}
+          />
+          <button
+            onClick={analyzeSentiment}
+            disabled={loading || !topic.trim()}
+            className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" className="opacity-25" />
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" className="opacity-75" />
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              'Analyze'
             )}
-          </div>
+          </button>
         </div>
+      </div>
 
-        {/* AI Model */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">AI Model</h2>
-          <div className="space-y-3">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div>
-                <p className="font-medium">Grok 3 (Free Tier)</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Limited quotas, accessible on grok.com, x.com, and apps.
-                </p>
+      {result && total > 0 && (
+        <>
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <div
+              className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleCardClick('positive')}
+            >
+              <div className="text-4xl font-bold text-green-600 dark:text-green-400">
+                {posPct.toFixed(1)}%
               </div>
-              <input
-                type="radio"
-                name="model"
-                checked={model === 'grok-3'}
-                onChange={() => setModel('grok-3')}
-                className="h-5 w-5 text-blue-600"
-              />
-            </label>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Positive</div>
+              <div className="text-2xl font-medium mt-1">{result.positive} posts</div>
+            </div>
 
-            <label className="flex items-center justify-between cursor-pointer">
-              <div>
-                <p className="font-medium">Grok 4 (PremiumPlus)</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Advanced model for SuperGrok and PremiumPlus subscribers.
-                </p>
+            <div
+              className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-lg border border-yellow-200 dark:border-yellow-800 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleCardClick('neutral')}
+            >
+              <div className="text-4xl font-bold text-yellow-600 dark:text-yellow-400">
+                {neuPct.toFixed(1)}%
               </div>
-              <input
-                type="radio"
-                name="model"
-                checked={model === 'grok-4'}
-                onChange={() => setModel('grok-4')}
-                className="h-5 w-5 text-blue-600"
-              />
-            </label>
-          </div>
-        </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Neutral</div>
+              <div className="text-2xl font-medium mt-1">{result.neutral} posts</div>
+            </div>
 
-        {/* About */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">About</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Bullshit Detector v1.0 — Built with React, Vite, Tailwind, and xAI.
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-            Open source. MIT License.
+            <div
+              className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg border border-red-200 dark:border-red-800 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleCardClick('negative')}
+            >
+              <div className="text-4xl font-bold text-red-600 dark:text-red-400">
+                {negPct.toFixed(1)}%
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Negative</div>
+              <div className="text-2xl font-medium mt-1">{result.negative} posts</div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border mb-6">
+            <h3 className="font-semibold mb-2">Summary: {result.topic}</h3>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Based on <strong>{result.totalPosts}</strong> recent public posts.
+            </p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 italic">
+              {result.explanation}
+            </p>
+          </div>
+
+          {mode === 'professional' && result.quotes && result.quotes.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border mb-6">
+              <h3 className="font-semibold mb-4">Sample Quotes</h3>
+              <div className="space-y-4">
+                {result.quotes.map((q, i) => (
+                  <blockquote
+                    key={i}
+                    className={`p-4 rounded-lg border-l-4 ${
+                      q.sentiment === 'positive'
+                        ? 'bg-green-50 border-green-500 dark:bg-green-900/20'
+                        : q.sentiment === 'neutral'
+                        ? 'bg-yellow-50 border-yellow-500 dark:bg-yellow-900/20'
+                        : 'bg-red-50 border-red-500 dark:bg-red-900/20'
+                    }`}
+                  >
+                    <p className="text-sm italic">"{q.text}"</p>
+                    <span
+                      className={`text-xs font-medium mt-1 inline-block ${
+                        q.sentiment === 'positive'
+                          ? 'text-green-700 dark:text-green-400'
+                          : q.sentiment === 'neutral'
+                          ? 'text-yellow-700 dark:text-yellow-400'
+                          : 'text-red-700 dark:text-red-400'
+                      }`}
+                    >
+                      — {q.sentiment.toUpperCase()}
+                    </span>
+                  </blockquote>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {mode === 'professional' && result.sources && result.sources.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border">
+              <h3 className="font-semibold mb-4">Sources</h3>
+              <ul className="space-y-2">
+                {result.sources.map((src, i) => (
+                  <li key={i}>
+                    <a
+                      href={src.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-600 hover:underline text-sm flex items-center gap-1"
+                    >
+                      {src.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+
+      {result && result.explanation.includes('Add your xAI API key') && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-300">
+            {result.explanation}{' '}
+            <a href="/settings" className="underline font-medium">
+              Go to Settings
+            </a>
           </p>
         </div>
+      )}
+
+      <div className="mt-8 text-sm text-gray-500 dark:text-gray-400">
+        Mode: <strong>{mode === 'professional' ? 'Professional' : 'Voter'}</strong> | 
+        Model: <strong>{model === 'grok-3' ? 'Grok 3' : 'Grok 4'}</strong>
       </div>
     </div>
   );

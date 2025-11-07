@@ -1,6 +1,7 @@
 // src/pages/SentimentPage.tsx
 import { useState } from 'react';
-import { useModel } from '../contexts/ModelContext';
+import { useNavigate } from 'react-router-dom';
+import { useModel } from '../contexts/ModelContext'; // Fixed: was ModelModelContext
 import { useUserMode } from '../contexts/UserModeContext';
 
 interface SentimentResult {
@@ -19,8 +20,9 @@ export default function SentimentPage() {
   const [result, setResult] = useState<SentimentResult | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const navigate = useNavigate();
   const { apiKey, model } = useModel();
-  const { mode } = useUserMode(); // Voter or Professional
+  const { mode } = useUserMode();
 
   const analyzeSentiment = async () => {
     if (!topic.trim()) return;
@@ -87,7 +89,6 @@ export default function SentimentPage() {
 
       const parsed: SentimentResult = JSON.parse(content);
 
-      // Validate required fields
       if (
         typeof parsed.positive !== 'number' ||
         typeof parsed.neutral !== 'number' ||
@@ -113,6 +114,12 @@ export default function SentimentPage() {
     }
   };
 
+  const handleCardClick = (type: 'positive' | 'neutral' | 'negative') => {
+    if (result) {
+      navigate(`/sentiment/${type}`, { state: { result, topic } });
+    }
+  };
+
   const total = result ? result.totalPosts : 0;
   const posPct = total > 0 ? (result!.positive / total) * 100 : 0;
   const neuPct = total > 0 ? (result!.neutral / total) * 100 : 0;
@@ -127,7 +134,6 @@ export default function SentimentPage() {
           : 'Quick sentiment overview of public opinion.'}
       </p>
 
-      {/* Input */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border mb-8">
         <div className="flex flex-col sm:flex-row gap-4">
           <input
@@ -159,35 +165,53 @@ export default function SentimentPage() {
         </div>
       </div>
 
-      {/* Results */}
       {result && total > 0 && (
         <>
-          {/* Percentages */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-4xl font-bold text-green-600 dark:text-green-400">{posPct.toFixed(1)}%</div>
+            <div
+              className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleCardClick('positive')}
+            >
+              <div className="text-4xl font-bold text-green-600 dark:text-green-400">
+                {posPct.toFixed(1)}%
+              </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Positive</div>
               <div className="text-2xl font-medium mt-1">{result.positive} posts</div>
             </div>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-lg border border-yellow-200 dark:border-yellow-800">
-              <div className="text-4xl font-bold text-yellow-600 dark:text-yellow-400">{neuPct.toFixed(1)}%</div>
+
+            <div
+              className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-lg border border-yellow-200 dark:border-yellow-800 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleCardClick('neutral')}
+            >
+              <div className="text-4xl font-bold text-yellow-600 dark:text-yellow-400">
+                {neuPct.toFixed(1)}%
+              </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Neutral</div>
               <div className="text-2xl font-medium mt-1">{result.neutral} posts</div>
             </div>
-            <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg border border-red-200 dark:border-red-800">
-              <div className="text-4xl font-bold text-red-600 dark:text-red-400">{negPct.toFixed(1)}%</div>
+
+            <div
+              className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg border border-red-200 dark:border-red-800 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleCardClick('negative')}
+            >
+              <div className="text-4xl font-bold text-red-600 dark:text-red-400">
+                {negPct.toFixed(1)}%
+              </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Negative</div>
               <div className="text-2xl font-medium mt-1">{result.negative} posts</div>
             </div>
           </div>
 
-          {/* Explanation */}
           <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border mb-6">
-            <h3 className="font-semibold mb-2">Summary</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300 italic">{result.explanation}</p>
+            <h3 className="font-semibold mb-2">Summary: {result.topic}</h3>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Based on <strong>{result.totalPosts}</strong> recent public posts.
+            </p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 italic">
+              {result.explanation}
+            </p>
           </div>
 
-          {/* Pro Only: Quotes & Sources */}
           {mode === 'professional' && result.quotes && result.quotes.length > 0 && (
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border mb-6">
               <h3 className="font-semibold mb-4">Sample Quotes</h3>
@@ -243,7 +267,6 @@ export default function SentimentPage() {
         </>
       )}
 
-      {/* No API Key */}
       {result && result.explanation.includes('Add your xAI API key') && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
           <p className="text-sm text-yellow-800 dark:text-yellow-300">
