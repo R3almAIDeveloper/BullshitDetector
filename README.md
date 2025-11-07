@@ -1,50 +1,214 @@
-# Bullshit Detector
+# BullshitDetector
 
-**Real-time political claim checker powered by xAI's Grok.**
+**A real-time claim validation and public sentiment analysis tool powered by xAI's Grok API and Supabase.**
 
-Paste any statement, headline, or claim — get instant **Bullshit**, **Mostly True**, or **Neutral** verdict with **real-time sentiment analysis**.
+Detect bullshit. Fast. Accurately.
 
-**No backend. No tracking. All local.**
+[Live Demo](https://bullshit-detector.vercel.app) | [GitHub](https://github.com/BullshitDetector/BullshitDetector)
 
 ---
 
 ## Features
 
-| Feature | Status |
-|-------|--------|
-| **Voter Mode** – Instant verdicts | Done |
-| **Sentiment Dashboard** – Public opinion % | Done |
-| **Professional Mode** – Coming soon | In Progress |
-| **History** – Save & search past checks | Done |
-| **Settings** – Dark mode, model, API key | Done |
-| **xAI API** – Grok 3 (free) / Grok 4 (Premium) | Done |
-| **Local JSON DB** – `bullshit-detector-db.json` | Done |
-| **Zero backend** – Runs fully offline | Done |
-
----
-
-## Live Demo
-
-[https://bullshit-detector.vercel.app](https://bullshit-detector.vercel.app) *(coming soon)*
+| Feature | Description |
+|-------|-----------|
+| **Claim Validation** | Enter any claim → get a verdict: **Bullshit**, **Mostly True**, or **Neutral** with confidence score |
+| **Sentiment Dashboard** | Analyze public opinion on any topic across X, Reddit, and news |
+| **Professional Mode** | Deep analysis with quotes, sources, and methodology |
+| **Supabase Backend** | Secure, persistent history with user authentication |
+| **Responsive UI** | Works on desktop, tablet, and mobile |
+| **Dark Mode** | Clean, modern Tailwind CSS design |
+| **Export Ready** | PDF export coming soon |
 
 ---
 
 ## Tech Stack
 
-- **React** + **Vite**
-- **Tailwind CSS**
-- **TypeScript**
-- **xAI API** (`api.x.ai`)
-- **Local JSON DB** (no `localStorage`)
-- **Vite dev server** with `fs.allow`
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Routing**: React Router v6
+- **State Management**: React Context API
+- **AI Backend**: xAI Grok API (`grok-3`, `grok-4`)
+- **Database & Auth**: Supabase (PostgreSQL + Auth)
+- **Deployment**: Vercel / StackBlitz
 
 ---
 
-## Setup
+## Project Structure
+
+```
+src/
+├── components/     # Reusable UI components
+├── contexts/       # React Context (Model, UserMode)
+├── lib/            # Supabase client, history utils
+├── pages/          # Route pages
+│   ├── Validator.tsx
+│   ├── SentimentPage.tsx
+│   ├── SentimentDetail.tsx
+│   ├── HistoryPage.tsx
+│   ├── SettingsPage.tsx
+│   └── AuthPage.tsx
+├── routes.tsx      # App routes
+└── main.tsx        # Entry point
+```
+
+---
+
+## Getting Started
 
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/yourusername/BullshitDetector.git
+git clone https://github.com/BullshitDetector/BullshitDetector.git
 cd BullshitDetector
 pnpm install
+```
+
+### 2. Environment Variables
+
+Create `.env` in root:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+> Get from: [Supabase Dashboard → Settings → API](https://supabase.com/dashboard/project/hinzcotdeuszvvyidbqe/settings/api)
+
+### 3. Run Locally
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:5173](http://localhost:5173)
+
+---
+
+## Supabase Setup
+
+### 1. Create Table (SQL Editor)
+
+```sql
+create table validation_history (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users not null,
+  claim text not null,
+  verdict text check (verdict in ('bullshit', 'mostly true', 'neutral')),
+  score double precision check (score >= 0 and score <= 1),
+  mode text check (mode in ('voter', 'professional')),
+  created_at timestamp with time zone default now()
+);
+
+alter table validation_history enable row level security;
+
+create policy "Users can manage their history"
+  on validation_history for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+
+### 2. Enable Auth
+
+Go to **Authentication → Providers → Email** → Enable
+
+---
+
+## Usage
+
+### Validate a Claim
+
+1. Go to **Home**
+2. Enter: `"The moon is made of cheese"`
+3. Click **Validate**
+4. See verdict + confidence score
+
+### Analyze Sentiment
+
+1. Go to **Sentiment**
+2. Enter: `"AI will replace programmers"`
+3. Click **Analyze**
+4. Click **Positive / Neutral / Negative** cards → see detailed methodology
+
+### View History
+
+1. Sign up / log in at **/auth**
+2. Go to **History**
+3. All past validations are saved
+
+---
+
+## User Modes
+
+| Mode | Features |
+|------|---------|
+| **Voter** | Fast, simple verdicts |
+| **Professional** | Quotes, sources, methodology, deep analysis |
+
+Toggle in **Settings**
+
+---
+
+## API Integration
+
+### xAI Grok API
+
+- Uses `grok-3` (free) or `grok-4` (premium)
+- Add your key in **Settings**
+- Get key: [https://x.ai/api](https://x.ai/api)
+
+---
+
+## Development
+
+### Scripts
+
+```bash
+pnpm dev        # Start dev server
+pnpm build      # Build for production
+pnpm preview    # Preview build
+```
+
+### StackBlitz
+
+Open in [StackBlitz](https://stackblitz.com/edit/bullshit-detector) for instant editing.
+
+---
+
+## Deployment
+
+### Deploy to Vercel
+
+```bash
+vercel
+```
+
+> Auto-deploys on push to `main`
+
+---
+
+## Roadmap
+
+- [ ] Export results to PDF
+- [ ] Real-time sentiment trends
+- [ ] Chrome extension
+- [ ] Shareable validation links
+- [ ] Fact-checker mode (auto-validate claims in articles)
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a branch: `feat/your-feature`
+3. Commit: `git commit -m "feat: add pdf export"`
+4. Push & PR
+
+---
+
+## License
+
+MIT © [BullshitDetector](https://github.com/BullshitDetector)
+
+---
+
+**Built to cut through the noise. No bullshit.**
