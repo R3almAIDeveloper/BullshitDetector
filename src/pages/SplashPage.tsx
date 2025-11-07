@@ -20,6 +20,8 @@ export default function SplashPage() {
   const navigate = useNavigate();
 
   const handleLogin = async () => {
+    console.log('Login button clicked:', { email, password }); // Debug: Confirm click
+
     if (!email || !password) {
       setError('Email and password required.');
       return;
@@ -28,19 +30,20 @@ export default function SplashPage() {
     setLoading(true);
     setError('');
     try {
+      console.log('Calling login function...');
       const result = await login(email, password);
       console.log('Login result:', result); // Debug: Check if bypass happened
       if (result.isSuperAdmin) {
         console.log('Bypassing OTP — navigating to /');
         // Super admin — bypass OTP, go to home
-        navigate('/', { replace: true }); // Use replace to prevent back button to login
+        navigate('/', { replace: true });
         return;
       }
       console.log('Not super admin — proceeding to OTP');
       // Regular user — proceed to OTP
       setStep('otp');
     } catch (err: any) {
-      console.log('Login error:', err);
+      console.log('Login error:', err); // Debug: Log error
       setError(err.message);
     } finally {
       setLoading(false);
@@ -48,6 +51,8 @@ export default function SplashPage() {
   };
 
   const handleOTP = async () => {
+    console.log('Verify OTP clicked:', { otp }); // Debug: Confirm click
+
     if (!otp) {
       setError('OTP required.');
       return;
@@ -56,9 +61,12 @@ export default function SplashPage() {
     setLoading(true);
     setError('');
     try {
+      console.log('Calling verifyOTP...');
       await verifyOTP(otp);
+      console.log('OTP verified — navigating to /');
       navigate('/');
     } catch (err: any) {
+      console.log('OTP error:', err); // Debug: Log error
       setError(err.message);
     } finally {
       setLoading(false);
