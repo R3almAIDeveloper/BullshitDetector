@@ -4,8 +4,8 @@ import { supabase } from './supabase';
 interface SMTPConfig {
   host: string;
   port: number;
-  user: string;
-  pass: string;
+  username: string;
+  password: string;
   secure: boolean;
 }
 
@@ -23,14 +23,15 @@ export async function sendOTP(email: string, code: string) {
   const smtpConfig = await getSMTPConfig();
   if (!smtpConfig) throw new Error('SMTP config not set. Admin must configure in /admin-config.');
 
+  // Dynamic import nodemailer to avoid bundling issues
   const nodemailer = await import('nodemailer');
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     host: smtpConfig.host,
     port: smtpConfig.port,
     secure: smtpConfig.secure,
     auth: {
-      user: smtpConfig.user,
-      pass: smtpConfig.pass,
+      user: smtpConfig.username,
+      pass: smtpConfig.password,
     },
   });
 

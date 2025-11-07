@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase'; // Added: Import supabase client
+import { supabase } from '../lib/supabase';
 
 interface User {
   id: string;
@@ -26,7 +26,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Demo super admin (hardcoded for quick access; in prod, use Supabase users table)
-const SUPER_ADMIN_EMAIL = 'admin@r3alm.com';
+const SUPER_ADMIN_EMAIL = 'super@bullshitdetector.com';
 const SUPER_ADMIN_PASSWORD = 'superpass123';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!data.session?.user) throw new Error('Invalid credentials');
 
-    // Generate and send OTP (store in session for 5 min)
+    // Generate and save OTP (store in session for 5 min)
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
     const otpObj: OTP = {
       code: otpCode,
@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const clearOTP = async (email: string, code: string) => {
+  const sendOTP = async (email: string, code: string) => {
     // Fetch SMTP config from Supabase
     const { data: smtpConfig } = await supabase.from('smtp_config').select('*').single();
     if (!smtpConfig) throw new Error('SMTP config not set. Admin must configure in /admin-config.');
@@ -151,8 +151,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       port: smtpConfig.port,
       secure: smtpConfig.secure,
       auth: {
-        user: smtpConfig.user,
-        pass: smtpConfig.pass,
+        user: smtpConfig.username,
+        pass: smtpConfig.password,
       },
     });
 
