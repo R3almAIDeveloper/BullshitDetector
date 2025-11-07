@@ -7,5 +7,6 @@ export default defineConfig({
   server: {
     port: 5173, // Fixed: Lock to port 5173 to prevent hopping
     host: true, // Optional: Allow access from network (e.g., 0.0.0.0:5173)
+    strictPort: true, // New: Strict mode — fail if 5173 is occupied; no auto-port change
   },
 });
