@@ -8,8 +8,8 @@ interface Verdict {
   score: number;
   verdict: 'bullshit' | 'mostly true' | 'neutral';
   explanation: string;
-  riskAssessment?: string; // New: Professional only
-  sources?: { title: string; url: string }[];
+  riskAssessment?: string;
+  sources?: { title: string; url: string; extract?: string }[]; // Added extract
   sentiment?: { positive: number; neutral: number; negative: number; total: number };
 }
 
@@ -17,6 +17,7 @@ export default function Validator() {
   const [claim, setClaim] = useState('');
   const [result, setResult] = useState<Verdict | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set()); // For expand/hide
 
   const { apiKey, model } = useModel();
   const { mode } = useUserMode();
@@ -26,6 +27,7 @@ export default function Validator() {
 
     setLoading(true);
     setResult(null);
+    setExpandedSources(new Set()); // Reset expands
 
     if (!apiKey) {
       setResult({
@@ -58,10 +60,10 @@ export default function Validator() {
                 "verdict": "bullshit" | "mostly true" | "neutral",
                 "explanation": "Detailed 3-4 sentence analysis with evidence breakdown"${isPro ? `,
                 "riskAssessment": "1-2 sentence risk level (low/medium/high) with why",
-                "sources": [3-5 {"title": "Source", "url": "https://..."}],
+                "sources": [3-5 {"title": "Source Name", "url": "https://...", "extract": "50-100 word short extract from the source"}],
                 "sentiment": {"positive": 0-100, "neutral": 0-100, "negative": 0-100, "total": sum of 200 sample posts}` : ''}
               }
-              No markdown. Professional: Include citations; Voter: Keep concise.`,
+              No markdown. Professional: Include extracts; Voter: Keep concise.`,
             },
           ],
           max_tokens: isPro ? 800 : 200,
@@ -86,7 +88,7 @@ export default function Validator() {
 
       setResult(parsed);
 
-      // Save to history
+      // Auto-save to history
       if (parsed.verdict) {
         saveToHistory({
           claim,
@@ -107,32 +109,17 @@ export default function Validator() {
     }
   };
 
-  const sentimentPie = useMemo(() => {
-    if (!result?.sentiment || result.sentiment.total === 0) return null;
-    const { positive, neutral, negative, total } = result.sentiment;
-    return (
-      <div className="relative">
-        <div className="flex justify-center items-center w-32 h-32 rounded-full bg-gray-200 dark:bg-gray-700">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {((total > 0 ? total / 200 * 100 : 0).toFixed(0))}%
-            </div>
-            <div className="text-xs text-gray-600 dark:text-gray-400">Coverage</div>
-          </div>
-        </div>
-        <div className="absolute inset-0 flex justify-center items-center">
-          <div className="w-20 h-20 bg-white dark:bg-gray-900 rounded-full" />
-        </div>
-        <style jsx>{`
-          .pie {
-            position: relative;
-            width: 32px;
-            height: 32px;
-          }
-        `}</style>
-      </div>
-    );
-  }, [result]);
+  const toggleSource = (index: number) => {
+    setExpandedSources(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-5xl">
@@ -227,24 +214,48 @@ export default function Validator() {
             </div>
           )}
 
-          {/* Pro: Sources */}
+          {/* Pro: Sources with Extracts */}
           {mode === 'professional' && result.sources && result.sources.length > 0 && (
             <div className="p-6 bg-white dark:bg-gray-800 rounded-lg border">
               <h3 className="font-semibold mb-4">Sources (3-5 Citations)</h3>
-              <ul className="space-y-2">
+              <div className="space-y-4">
                 {result.sources.map((src, i) => (
-                  <li key={i}>
-                    <a
-                      href={src.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-600 hover:underline text-sm flex items-center gap-1"
+                  <div key={i} className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-b-0">
+                    <button
+                      onClick={() => toggleSource(i)}
+                      className="flex items-center justify-between w-full text-left"
+                      aria-expanded={expandedSources.has(i)}
                     >
-                      {src.title}
-                    </a>
-                  </li>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-purple-600">{src.title}</span>
+                        <a
+                          href={src.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          {src.url}
+                        </a>
+                      </div>
+                      <svg
+                        className={`w-5 h-5 transition-transform duration-200 ${
+                          expandedSources.has(i) ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {expandedSources.has(i) && src.extract && (
+                      <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded text-sm text-gray-700 dark:text-gray-300">
+                        {src.extract}
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </div>
