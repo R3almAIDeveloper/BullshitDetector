@@ -1,9 +1,7 @@
 // src/contexts/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
 
 interface User {
-  id: string;
   email: string;
   isAdmin: boolean;
   mode: 'voter' | 'professional';
@@ -26,7 +24,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Demo super admin (hardcoded for quick access; in prod, use Supabase users table)
-const SUPER_ADMIN_EMAIL = 'super@bullshitdetector.com';
+const SUPER_ADMIN_EMAIL = 'admin@r3alm.com'; // Updated to new super admin email
 const SUPER_ADMIN_PASSWORD = 'superpass123';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -79,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!data.session?.user) throw new Error('Invalid credentials');
 
-    // Generate and save OTP (store in session for 5 min)
+    // Generate and send OTP (store in session for 5 min)
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
     const otpObj: OTP = {
       code: otpCode,
@@ -146,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Dynamic import nodemailer to avoid bundling issues
     const nodemailer = await import('nodemailer');
-    const transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransporter({
       host: smtpConfig.host,
       port: smtpConfig.port,
       secure: smtpConfig.secure,
