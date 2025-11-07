@@ -12,14 +12,18 @@ interface OTP {
   expires: number;
 }
 
+interface LoginResult {
+  isSuperAdmin: boolean;
+  user: User | null;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   verifyOTP: (otp: string) => Promise<void>;
   resendOTP: (email: string) => Promise<void>;
   logout: () => Promise<void>;
-  isValidUser: (email: string, password: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,13 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalizedAdminEmail = SUPER_ADMIN_EMAIL.toLowerCase().trim();
     const normalizedPassword = password.trim();
 
-    const isValid = normalizedEmail === normalizedAdminEmail && normalizedPassword === SUPER_ADMIN_PASSWORD;
-    console.log('Admin validation:', { normalizedEmail, normalizedAdminEmail, normalizedPassword, isValid });
-
-    return isValid;
+    return normalizedEmail === normalizedAdminEmail && normalizedPassword === SUPER_ADMIN_PASSWORD;
   };
 
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     console.log('Login attempt:', { email, password });
 
     if (isValidUser(email, password)) {
@@ -78,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         mode: 'professional',
       };
       saveSession(userData);
-      return;
+      return { isSuperAdmin: true, user: userData };
     }
 
     console.log('Regular user — proceeding with Supabase + OTP');
@@ -107,12 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sendOTP(email, otpCode); // Function defined in smtp.ts
 
     // Set temp session (await OTP verification)
-    saveSession({
+    const tempUser: User = {
       id: data.session.user.id,
       email,
       isAdmin: false,
       mode: 'voter',
-    });
+    };
+    saveSession(tempUser);
+
+    return { isSuperAdmin: false, user: tempUser };
   };
 
   const verifyOTP = async (otp: string): Promise<void> => {
@@ -123,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('OTP expired. Please login again.');
     }
 
-    if (currentOTP.code !== otp) {
+  if (currentOTP.code !== otp) {
       throw new Error('Invalid OTP code.');
     }
 
